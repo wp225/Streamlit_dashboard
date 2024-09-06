@@ -1,0 +1,75 @@
+Table account_management_user {
+  id int pk
+  username varchar
+  country varchar
+  is_email_confirmed bool
+  created_at datetime
+}
+
+Table account_management_followerstransaction{
+  id int pk
+  followed_by_id int [ref:-User.id]
+  updated_at datetime
+}
+
+Table account_management_referraltransaction{
+  id int pk
+  referred_by_id int [ref:-User.id]
+  created_at datetime
+}
+
+
+Table file_management_category{
+  id int pk
+  category_name varchar
+}
+
+Table file_management_userfile{
+  id int pk
+  user_id int [ref:>User.id]
+  category_id_id int
+  created_at datetime
+
+}
+
+Table file_management_filedownloadtransaction{
+  id int pk
+  file_id int [ref:>UserFile.id]
+  counted bool
+  browser_name varchar
+  device_name varchar
+  created_at datetime
+}
+
+
+Table finance_management_countrywiseearning{
+  id int pk
+  country_name varchar [note:"choices from country list"]
+  earning_rate decimal [note:"Earning percentage"]
+  updated_at datetime
+}
+
+
+
+Table finance_management_withdrawmethod{
+  id int pk
+  method_name varchar
+}
+
+Table finance_management_withdrawrequesttransaction{
+  id int pk
+  user_id int [ref:>User.id]
+  withdraw_method_id int [ref:-WithdrawMethod.id]
+  amount decimal
+}
+
+Table finance_management_userwallet {
+  id int pk
+  user_id int [ref: -User.id , note:"It is user in orm but shows user_id in the db"]
+  total_balance decimal
+  paid_balance decimal
+  updated_at datetime
+}
+
+airflow webserver
+airflow scheduler

@@ -1,0 +1,119 @@
+<style>
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap');
+
+    /* Apply font globally */
+    body {
+        font-family: 'Open Sans', sans-serif;
+        background-color: #ffffff; /* Background color */
+    }
+
+    .title {
+        color: red;
+        font-size: 3em;
+    }
+
+    .custom-metric {
+        background-color: #262730;  /* Dark background */
+        padding: 10px;
+        border-radius: 10px;
+        text-align: center;
+        color: white;  /* White text */
+        font-size: 1.5rem;  /* Larger font for value */
+        font-weight: bold;  /* Bold value */
+    }
+
+    .custom-label {
+        font-size: 1rem;
+        font-weight: normal;
+        color: lightgray;  /* Light gray text for label */
+    }
+
+    main {
+        background-color: #000000; /* Background color */
+        padding: 20px; /* Optional: Add padding */
+        border-radius: 10px; /* Optional: Add rounded corners */
+    }
+
+    h3 span {
+        font-size: 1.1em;
+        font-weight: 700;
+        color: #174C4F;
+    }
+
+    .stVerticalBlockBorderWrapper .stHtml > .watchlist_card {
+        padding-bottom: 0em;
+    }
+
+    .stVerticalBlock .stHtml > .watchlist_symbol_name p {
+        color: #ffffff;
+        font-size: 1em;
+        font-weight: 500;
+        margin-bottom: 0;
+    }
+
+    .stVerticalBlock .stHtml > .watchlist_ticker p {
+        font-size: 0.8em;
+        margin-bottom: 0;
+    }
+
+    .stVerticalBlock .stHtml > .watchlist_price_label p {
+        font-size: 0.5em;
+        margin-bottom: 0;
+    }
+
+    .stVerticalBlock .stHtml > .watchlist_price_value p {
+        color: #ffffff;
+        font-size: 0.8em;
+        margin-bottom: 0;
+    }
+
+    .stVerticalBlock .stHtml > .column_plotly .stPlotlyChart {
+        margin-top: 1em;
+        padding: 1em;
+        border-radius: 16px;
+        box-shadow: 0px 0px 10px rgba(81, 85, 195, 0.2);
+    }
+
+    .stVerticalBlock .stHtml > .watchlist_br {
+        display: block;
+        width: 100%;
+        height: 20px; /* Adjust height if necessary */
+        margin-bottom: 10px;
+    }
+
+    .stVerticalBlock .stHtml > .column_indicator {
+        margin-top: 2.5em;
+        padding-left: 4em;
+    }
+
+    .stMetric {
+        background-color: #FFFFFF;
+        border: 1px solid #CCCCCC;
+        padding: 1em 2em;
+        border-radius: 5px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    }
+
+    .stMetricLabel p {
+        font-size: 1em;
+    }
+
+    .stMetricValue {
+        font-size: 1.3em;
+        font-weight: 700;
+        color: #174C4F;
+    }
+
+    .stVerticalBlock .stHtml > .low_indicator .stMetric {
+        border-left: 0.5rem solid red;
+    }
+
+    .stVerticalBlock .stHtml > .high_indicator .stMetric {
+        border-left: 0.5rem solid green;
+    }
+
+    .stVerticalBlock .stHtml > .bottom_indicator {
+        margin-top: 0.5em;
+    }
+</style>
