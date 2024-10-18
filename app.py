@@ -2,7 +2,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from sqlalchemy import text
-
+import subprocess
 from dash_components.components import DashComponents
 from utils.config import dest_db_config
 from utils.general import connect
@@ -14,7 +14,6 @@ st.set_page_config(page_title="DLsurf Dashboard", layout="wide")
 engine = connect(dest_db_config)
 component = DashComponents()
 
-# Load CSS
 with open('style.css') as f:
     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
@@ -24,7 +23,13 @@ time_period = st.sidebar.selectbox(
     "Choose a time period:",
     ("day", "week", "month", "quarter", "year"),
     index=1
+
 )
+
+if st.button("Refresh Data"):
+    # Run the main.py script
+    subprocess.run(["python", "main.py"])  # Adjust path as necessary
+    st.success("Data migration complete!")
 
 
 # Function to fetch data from a table
@@ -80,7 +85,7 @@ queries = {
     "user_count": '''SELECT COUNT(id) FROM public.account_management_user''',
     "total_views": '''SELECT COUNT(id) FROM public.file_management_fileviewstransaction''',
     "total_uploads": '''SELECT COUNT(id) FROM public.file_management_userfile''',
-    "total_subscribed": '''SELECT COUNT(id) FROM public.subscription_management_subscriptiontransaction WHERE is_active IS TRUE'''
+    "total_subscribed": '''SELECT COUNT(id) FROM public.subscription_management_subscriptiontransaction WHERE status = 'ACTIVE';'''
 }
 
 col1, col2, col3, col4 = st.columns(4)
@@ -134,7 +139,7 @@ col1_row2, col2_row2, col3_row2 = st.columns(3)
 
 create_cards(col1_row1, 'User', 'account_management_user', 'created_at', time_period, engine)
 create_cards(col2_row1, 'Referrals', 'account_management_referraltransaction', 'created_at', time_period, engine)
-create_cards(col3_row1, 'Followers', 'account_management_followerstransaction', 'updated_at', time_period, engine)
+create_cards(col3_row1, 'Followers', 'account_management_followerstransaction', 'created_at', time_period, engine)
 create_cards(col1_row2, 'Uploads', 'file_management_userfile', 'created_at', time_period, engine)
 create_cards(col2_row2, 'Downloads', 'file_management_filedownloadtransaction', 'created_at', time_period, engine)
 create_cards(col3_row2, 'Views', 'file_management_fileviewstransaction', 'created_at', time_period, engine)
@@ -160,10 +165,10 @@ def create_map_plot(metric):
         del file_country_data
 
     elif metric == 'Balance':
-        balance_by_country_query = '''SELECT u.country,SUM(uw.total_balance) as Total_Balance FROM public.account_management_user u 
+        balance_by_country_query = '''SELECT u.country,SUM(uw.total_balance) as Total_Balance FROM public.account_management_user u
                                     JOIN finance_management_userwallet uw
-                                ON u.id = uw.user_id 
-                                GROUP BY 
+                                ON u.id = uw.user_id
+                                GROUP BY
                                 1'''
         wallet_country_data = pd.read_sql(balance_by_country_query, engine)
         plot = component.map_plot(wallet_country_data)
@@ -177,7 +182,7 @@ def create_map_plot(metric):
     elif metric == 'Earning Rate':
         earning_rate_data = get_tables('finance_management_countrywiseearning', engine)
         plot = component.map_plot(earning_rate_data[['country_name', 'earning_rate']])
-        del earning_rate_data  # Clean up
+        del earning_rate_data
 
     return plot
 
@@ -200,18 +205,17 @@ st.markdown("<br><br>", unsafe_allow_html=True)
 ##### Categorial Views and uploads #####
 with col1:
     file_category_distribution_query = '''
-    SELECT fc.category_name, COUNT(uf.id) AS upload_count 
-    FROM file_management_category fc 
-    JOIN file_management_userfile uf ON fc.id = uf.category_id_id 
+    SELECT fc.category_name, COUNT(uf.id) AS upload_count
+    FROM file_management_category fc
+    JOIN file_management_userfile uf ON fc.id = uf.category_id_id
     GROUP BY fc.category_name;
     '''
     upload_df = pd.read_sql(file_category_distribution_query, engine)
-
     categorical_view_query = '''
-    SELECT ct.category_name, COUNT(v.id) AS view_count 
-    FROM public.file_management_userfile u 
-    JOIN public.file_management_fileviewstransaction v ON u.id = v.file_id 
-    JOIN public.file_management_category ct ON u.category_id_id = ct.id 
+    SELECT ct.category_name, COUNT(v.id) AS view_count
+    FROM public.file_management_userfile u
+    JOIN public.file_management_fileviewstransaction v ON u.id = v.file_id
+    JOIN public.file_management_category ct ON u.category_id_id = ct.id
     GROUP BY ct.category_name;
     '''
     view_df = pd.read_sql(categorical_view_query, engine)
@@ -268,7 +272,7 @@ with col2:
     withdraw_amount_by_different_method_query = '''SELECT wm.method_name,SUM(wt.amount)
     	FROM finance_management_withdrawmethod wm
     	JOIN finance_management_withdrawrequesttransaction wt
-    	ON wm.id = wt.withdraw_method_id GROUP BY 
+    	ON wm.id = wt.withdraw_method_id GROUP BY
     1
     '''
     result_df = pd.read_sql(withdraw_amount_by_different_method_query, engine)
@@ -292,25 +296,24 @@ with col2:
 col1, col2, col3 = st.columns(3)
 ##### SunBrust ####
 with col1:
-    query = """
-    SELECT 
+    query = """    SELECT
         u.id AS user_id,
-        s.id AS subscription_id,
+        s.id AS subscription_plan_id,
         s.subscription_name AS subscription_name
-    FROM 
+    FROM
         public.account_management_user u
-    LEFT JOIN 
+    LEFT JOIN
         public.subscription_management_subscriptiontransaction st
-    ON 
+    ON
         u.id = st.user_id
-    LEFT JOIN 
-        public.subscription_management_subscription s
-    ON 
-        st.subscription_id = s.id
+    LEFT JOIN
+        public.subscription_management_subscriptionplan s
+    ON
+        st.subscription_plan_id = s.id
     """
     df = pd.read_sql(query, engine)
 
-    df['status'] = df['subscription_id'].apply(lambda x: 'Subscribed' if pd.notna(x) else 'Unsubscribed')
+    df['status'] = df['subscription_plan_id'].apply(lambda x: 'Subscribed' if pd.notna(x) else 'Unsubscribed')
 
     subscribed_counts = df[df['status'] == 'Subscribed'].groupby('subscription_name').size().reset_index(name='values')
 
@@ -372,8 +375,8 @@ with col1:
     del sunburst_data
 #### Browser Distribution Plot ####
 with col2:
-    browser_info_query = '''SELECT browser_name,count(id) FROM public.file_management_filedownloadtransaction 
-                                GROUP BY browser_name ORDER BY 
+    browser_info_query = '''SELECT browser_name,count(id) FROM public.file_management_filedownloadtransaction
+                                GROUP BY browser_name ORDER BY
                                 2 DESC'''
     browser_info_df = pd.read_sql(browser_info_query, engine)
     browser_info_plot = component.bar_plot(browser_info_df)
@@ -394,8 +397,8 @@ with col2:
     st.plotly_chart(browser_info_plot)
 #### Device Distribution Plot ####
 with col3:
-    browser_info_query = '''SELECT device_name,count(id) FROM public.file_management_filedownloadtransaction 
-                                    GROUP BY 1 ORDER BY 
+    browser_info_query = '''SELECT device_name,count(id) FROM public.file_management_filedownloadtransaction
+                                    GROUP BY 1 ORDER BY
                                     2 DESC'''
     device_info_df = pd.read_sql(browser_info_query, engine)
     device_info_plot = component.bar_plot(device_info_df)
@@ -421,7 +424,7 @@ user_id = st.text_input("Enter User ID", "1")
 col1,col2 = st.columns(2)
 with col1:
     def get_user_data(user_id, engine):
-        user_info_query = f'''SELECT 
+        user_info_query = f'''SELECT
                                 COALESCE(v.created_at, u.created_at) AS created_at,
                                 COALESCE(views_count, 0) AS views_count,
                                 COALESCE(uploads_count, 0) AS uploads_count
@@ -484,7 +487,7 @@ with col1:
 with col2:
 
     downloads_by_country_query = f"""SELECT dt.country_name,COUNT(dt.id) FROM public.file_management_filedownloadtransaction dt JOIN public.file_management_userfile uf
-ON dt.file_id = uf.id WHERE 
+ON dt.file_id = uf.id WHERE
 uf.user_id = {user_id}
 GROUP BY 1"""
 

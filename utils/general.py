@@ -29,9 +29,3 @@ def update_metadata(session: str,new_timestamp):
     session.execute(text(query), {'new_timestamp': new_timestamp})
     session.commit()
 
-if __name__ == '__main__':
-    src_connection = connect(dest_db_config)
-    user_df = create_df('account_management_user', engine=src_connection,
-                        cols=['id', 'username', 'country', 'is_email_confirmed', 'created_at'],
-                        date_column='created_at')
-    print(user_df)

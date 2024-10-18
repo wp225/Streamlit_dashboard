@@ -1,33 +1,22 @@
 import logging
-from prefect import task, flow
-from prefect.deployments import Deployment
-from prefect.client.schemas.schedules import CronSchedule
-from create_db import create_database_if_not_exist
+from utils.db_manager import DatabaseManager
+from utils.db_data_transfer import DataTransfer
+from utils.db_initializer import DatabaseInitializer
+from utils.config import src_db_config,dest_db_config,CONSTRAINTS,TABLES_CONFIG
+def main():
+    src_db = DatabaseManager(src_db_config).connect()
+    dest_db = DatabaseManager(dest_db_config)
 
+    initializer = DatabaseInitializer(dest_db, TABLES_CONFIG, CONSTRAINTS)
+    initializer.create_database_if_not_exists()
 
-@task
-def create_database_if_not_exist_task():
-    logging.info("Creating database if not exist.")
-    create_database_if_not_exist()
-    logging.info("Database creation check completed.")
+    data_transfer = DataTransfer(src_db, dest_db, TABLES_CONFIG)
+    data_transfer.get_last_update_time()
+    data_transfer.transfer_all_data()
+    dest_db.commit()
 
-@task()
-def populate_database_task():
-    from data_writer import populate_database as populate_db_function
+    src_db.disconnect()
+    dest_db.disconnect()
 
-    logging.info("Populating the database.")
-    populate_db_function()
-    logging.info("Database population completed.")
-@flow(name="Database Setup Flow")
-def database_setup_flow():
-    create_database_if_not_exist_task()
-    populate_database_task()
-
-if __name__ == "__main__":
-    deployment = Deployment.build_from_flow(
-        flow=database_setup_flow,
-        name="database-setup",
-        schedule=(CronSchedule(cron="*/1 * * * *", timezone="America/Chicago"))
-    )
-    deployment.apply()
-    database_setup_flow()
+if __name__ == '__main__':
+    main()
