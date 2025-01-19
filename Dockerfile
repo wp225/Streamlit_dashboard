@@ -1,24 +1,23 @@
 # Base image
 FROM python:3.9-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# Environment variables to prevent Python from writing bytecode and enable unbuffered logs
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
+# Set working directory
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-    gcc \
-    python3-dev \
-    libpq-dev \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt /app
+# Upgrade pip and install dependencies
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
+# Copy application code
 COPY . /app
 
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
-
+# Expose the default Streamlit port
 EXPOSE 8501
 
-CMD ["streamlit", "run", "app.py"]
+# Set the entry point for the container
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]

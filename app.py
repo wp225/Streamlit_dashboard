@@ -3,16 +3,22 @@ import plotly.graph_objects as go
 import streamlit as st
 from sqlalchemy import text
 import subprocess
+from sqlalchemy import create_engine, text
 from dash_components.components import DashComponents
-from utils.config import dest_db_config
+from utils.config import dest_db_config,src_db_config
 from utils.general import connect
+component = DashComponents()
 
-# Streamlit page configuration
 st.set_page_config(page_title="DLsurf Dashboard", layout="wide")
 
-# Connect to the database
-engine = connect(dest_db_config)
-component = DashComponents()
+db_user = st.secrets["database"]["user"]
+db_password = st.secrets["database"]["password"]
+db_host = st.secrets["database"]["host"]
+db_port = st.secrets["database"]["port"]
+db_name = st.secrets["database"]["name"]
+
+connection_string = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+engine = create_engine(connection_string)
 
 with open('style.css') as f:
     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
@@ -47,12 +53,43 @@ def join_on_user(df_user, df_2):
 # Function to create metric cards
 def create_cards(position, name, table_name, date_column, time_period, engine):
     with position:
-        data = get_tables(table_name, engine)
-        agg_df = component.aggregate_by_period(data, date_column, time_period)
-        del (data)
-        fig = component.create_line_plot(agg_df)
-        metrices = component.get_metrices(agg_df)
-        del (agg_df)
+        with engine.connect() as conn:
+
+
+            # query = f'''SELECT COUNT(id), EXTRACT({time_period} FROM {date_column}) as time_period FROM {table_name} GROUP BY time_period ORDER BY time_period'''
+
+            query = f"""
+            WITH last_5_period AS (
+                SELECT generate_series(
+                    EXTRACT({time_period} FROM NOW())::int - 4, 
+                    EXTRACT({time_period} FROM NOW())::int
+                ) AS time_period
+            )
+            SELECT 
+                COALESCE(COUNT(u.id), 0) AS count,
+                w.time_period AS period
+            FROM 
+                last_5_period w
+            LEFT JOIN (
+                SELECT 
+                    id, 
+                    EXTRACT({time_period} FROM {date_column}) AS period_number
+                FROM 
+                    {table_name}
+                WHERE 
+                    {date_column} >= date_trunc('{time_period}', NOW()) - INTERVAL '4 {time_period}'
+            ) u
+            ON w.time_period = u.period_number
+            GROUP BY w.time_period
+            ORDER BY w.time_period;
+            """
+
+            result = conn.execute(text(query)).fetchall()
+
+        # agg_df = component.aggregate_by_period(data, date_column, time_period)
+        # del (data)
+        fig = component.create_line_plot(result)
+        metrices = component.get_metrices(result)
 
         with st.container(border=True):
             st.html(f'<span class="watchlist_card"></span>')
@@ -77,7 +114,9 @@ def create_cards(position, name, table_name, date_column, time_period, engine):
 
             with bottom:
                 st.plotly_chart(
-                    fig, config=dict(displayModeBar=False), use_container_width=True
+                    fig, config=dict(displayModeBar=False), use_container_width=True,
+                    key=f"plotly_chart_{name}"  # Unique key based on the chart's name
+
                 )
 
 ###1St column###
@@ -134,8 +173,10 @@ for col, (key, query) in zip([col1, col2, col3, col4], query2.items()):
 st.markdown("<br>", unsafe_allow_html=True)
 
 # Plotting
+
 col1_row1, col2_row1, col3_row1 = st.columns(3)
 col1_row2, col2_row2, col3_row2 = st.columns(3)
+
 
 create_cards(col1_row1, 'User', 'account_management_user', 'created_at', time_period, engine)
 create_cards(col2_row1, 'Referrals', 'account_management_referraltransaction', 'created_at', time_period, engine)
@@ -299,7 +340,7 @@ with col1:
     query = """    SELECT
         u.id AS user_id,
         s.id AS subscription_plan_id,
-        s.subscription_name AS subscription_name
+        s.name AS subscription_name
     FROM
         public.account_management_user u
     LEFT JOIN
@@ -307,7 +348,7 @@ with col1:
     ON
         u.id = st.user_id
     LEFT JOIN
-        public.subscription_management_subscriptionplan s
+        public.subscription_management_subscriptionplanname s
     ON
         st.subscription_plan_id = s.id
     """

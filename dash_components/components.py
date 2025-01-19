@@ -35,12 +35,12 @@ class DashComponents:
         return agg_df
 
     def create_line_plot(self, aggregated_df):
-        date_col = aggregated_df.columns[0]  # first column is the date column
+        date_col = [x[1] for x in aggregated_df]  # first column is the date column
 
         fig_spark = go.Figure(
             data=go.Scatter(
-                x=aggregated_df[date_col],  # Ensure x-values are set
-                y=aggregated_df['count'],
+                x=date_col,  # Ensure x-values are set
+                y=[x[0] for x in aggregated_df],
                 mode="lines",
                 fill="tozeroy",
                 line_color="red",
@@ -62,10 +62,12 @@ class DashComponents:
 
         return fig_spark
     def get_metrices(self, aggregated_df):
-
-        current_metrice = aggregated_df.iloc[-1].get('count')
         try:
-            previous_metrice = aggregated_df.iloc[-2].get('count')
+            current_metrice = aggregated_df[-1][0]
+        except:
+            return 0,0
+        try:
+            previous_metrice = aggregated_df[-2][0]
         except:
             previous_metrice = 0
 
