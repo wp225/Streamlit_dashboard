@@ -90,7 +90,7 @@ class DashComponents:
             autocolorscale=False,
             reversescale=False,
             marker_line_color='black',
-            colorscale='Reds',
+            colorscale='Emrld',
             marker_line_width=1,
             locationmode='country names',
         ))
@@ -110,17 +110,13 @@ class DashComponents:
         )
 
         return fig
-    def line_plot_finances(self, user_wallet_df):
-        # Group and sum the balances by updated_at
-        wallet_data_formatted = user_wallet_df.groupby('updated_at')[
-            ['total_balance', 'paid_balance']].sum().reset_index()
-
+    def line_plot_finances(self, wallet_data_formatted):
         fig = go.Figure()
 
         # Add Total Balance trace
         fig.add_trace(go.Scatter(
-            x=wallet_data_formatted['updated_at'],
-            y=wallet_data_formatted['total_balance'],
+            x=wallet_data_formatted['created_at'],
+            y=wallet_data_formatted['rolling_total_balance'],
             mode='lines',
             name='Total Balance',
             hovertemplate='Date:<b> %{x}</b><br>Total Balance:<b> $%{y:.2f}</b><extra></extra>'
@@ -128,8 +124,8 @@ class DashComponents:
 
         # Add Paid Balance trace
         fig.add_trace(go.Scatter(
-            x=wallet_data_formatted['updated_at'],
-            y=wallet_data_formatted['paid_balance'],
+            x=wallet_data_formatted['created_at'],
+            y=wallet_data_formatted['rolling_paid_balance'],
             mode='lines',
             name='Paid Balance',
             hovertemplate='Date:<b> %{x}</b><br>Paid Amount:<b> $%{y:.2f}</b><extra></extra>'

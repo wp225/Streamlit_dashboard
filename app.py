@@ -1,12 +1,9 @@
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from sqlalchemy import text
 import subprocess
 from sqlalchemy import create_engine, text
 from dash_components.components import DashComponents
-from utils.config import dest_db_config,src_db_config
-from utils.general import connect
 component = DashComponents()
 
 st.set_page_config(page_title="DLsurf Dashboard", layout="wide")
@@ -234,7 +231,19 @@ st.plotly_chart(plt, config={'scrollZoom': False})
 st.markdown("<br>", unsafe_allow_html=True)
 
 # Balance Plot
-wallet_df = get_tables('finance_management_userwallet', engine)
+wallet_df_query = ('''SELECT
+  created_at,
+  SUM(paid_balance) OVER (
+    ORDER BY created_at
+    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+  ) AS rolling_paid_balance,
+  SUM(total_balance + paid_balance) OVER (
+    ORDER BY created_at
+    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+  ) AS rolling_total_balance
+FROM public.finance_management_userwallet
+ORDER BY created_at''')
+wallet_df = pd.read_sql(wallet_df_query,engine)
 balance_plot = component.line_plot_finances(wallet_df)
 del (wallet_df)
 st.plotly_chart(balance_plot)
@@ -310,33 +319,6 @@ with col1:
     st.plotly_chart(fig)
 ### Withdraaw method and amount #####
 with col2:
-    withdraw_amount_by_different_method_query = '''SELECT wm.method_name,SUM(wt.amount)
-    	FROM finance_management_withdrawmethod wm
-    	JOIN finance_management_withdrawrequesttransaction wt
-    	ON wm.id = wt.withdraw_method_id GROUP BY
-    1
-    '''
-    result_df = pd.read_sql(withdraw_amount_by_different_method_query, engine)
-    payout_method_plot = component.bar_plot(result_df)
-    payout_method_plot.update_layout(
-        title='Withdraw method and amounts',
-        title_font=dict(size=16),
-        xaxis_title_font=dict(size=16, family='Arial', color='white', weight='bold'),
-        template='plotly_dark',
-        margin=dict(l=0, r=0, t=40, b=20),
-        height=400,
-    )
-    payout_method_plot.update_traces(
-        text=result_df['sum'].apply(lambda x: f'${x:,.2f}'),  # Format text inside the bars
-        textposition='inside',  # Position the text inside the bars
-        hovertemplate='Method: <b>%{x}</b><br>Amount: <b>$%{y:,.2f}<b><extra></extra>'  # Hover info
-    )
-    del result_df
-    st.plotly_chart(payout_method_plot)
-
-col1, col2, col3 = st.columns(3)
-##### SunBrust ####
-with col1:
     query = """    SELECT
         u.id AS user_id,
         s.id AS subscription_plan_id,
@@ -414,11 +396,38 @@ with col1:
     # Display the figure
     st.plotly_chart(fig)
     del sunburst_data
+
+col1, col2, col3 = st.columns(3)
+##### SunBrust ####
+with col1:
+    withdraw_amount_by_different_method_query = '''SELECT wm.method_name,SUM(wt.amount)
+    	FROM finance_management_withdrawmethod wm
+    	JOIN finance_management_withdrawrequesttransaction wt
+    	ON wm.id = wt.withdraw_method_id GROUP BY
+    1
+    '''
+    result_df = pd.read_sql(withdraw_amount_by_different_method_query, engine)
+    payout_method_plot = component.bar_plot(result_df)
+    payout_method_plot.update_layout(
+        title='Withdraw method and amounts',
+        title_font=dict(size=16),
+        xaxis_title_font=dict(size=16, family='Arial', color='white', weight='bold'),
+        template='plotly_dark',
+        margin=dict(l=0, r=0, t=40, b=20),
+        height=400,
+    )
+    payout_method_plot.update_traces(
+        text=result_df['sum'].apply(lambda x: f'${x:,.2f}'),  # Format text inside the bars
+        textposition='inside',  # Position the text inside the bars
+        hovertemplate='Method: <b>%{x}</b><br>Amount: <b>$%{y:,.2f}<b><extra></extra>'  # Hover info
+    )
+    del result_df
+    st.plotly_chart(payout_method_plot)
 #### Browser Distribution Plot ####
 with col2:
     browser_info_query = '''SELECT browser_name,count(id) FROM public.file_management_filedownloadtransaction
                                 GROUP BY browser_name ORDER BY
-                                2 DESC'''
+                                2 DESC LIMIT 5'''
     browser_info_df = pd.read_sql(browser_info_query, engine)
     browser_info_plot = component.bar_plot(browser_info_df)
     browser_info_plot.update_layout(
@@ -430,7 +439,7 @@ with col2:
         height=400,
     )
     browser_info_plot.update_traces(
-        text=browser_info_df['count'],
+        text=browser_info_df['count'][::-1],
         textposition='inside',  # Position the text inside the bars
         hovertemplate='Browser: <b>%{x}</b><br>Count: <b>%{y}<b><extra></extra>'  # Hover info
     )
@@ -452,7 +461,7 @@ with col3:
         height=400,
     )
     device_info_plot.update_traces(
-        text=device_info_df['count'],
+        text=device_info_df['count'][::-1],
         textposition='inside',  # Position the text inside the bars
         hovertemplate='Device: <b>%{x}</b><br>Count: <b>%{y}<b><extra></extra>'  # Hover info
     )
@@ -527,7 +536,7 @@ with col1:
     st.plotly_chart(fig)
 with col2:
 
-    downloads_by_country_query = f"""SELECT dt.country_name,COUNT(dt.id) FROM public.file_management_filedownloadtransaction dt JOIN public.file_management_userfile uf
+    downloads_by_country_query = f"""SELECT dt.country_name,COUNT(DISTINCT dt.id) FROM public.file_management_filedownloadtransaction dt JOIN public.file_management_userfile uf
 ON dt.file_id = uf.id WHERE
 uf.user_id = {user_id}
 GROUP BY 1"""
